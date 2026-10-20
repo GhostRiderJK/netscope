@@ -168,7 +168,7 @@ function printReport(report: ExperimentReport): void {
   const w = window.open('', '_blank')
   if (!w) return
   const md = reportToMarkdown(report)
-  w.document.write(`<html><head><title>${report.title}</title><style>body{font-family:system-ui,sans-serif;max-width:740px;margin:40px auto;font-size:14px;line-height:1.6}h1{font-size:22px;margin-bottom:4px}h2{font-size:16px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{padding:5px 8px;border:1px solid #ddd;font-size:13px}th{background:#f5f5f5}code{background:#eee;padding:1px 4px;border-radius:3px}hr{border:none;border-top:1px solid #ddd}</style></head><body>${mdToHtml(md)}</body></html>`)
+  w.document.write(`<html><head><title>${report.title}</title><style>body{font-family:'Inter',system-ui,sans-serif;color:#20282d;background:#fffefa;max-width:740px;margin:40px auto;font-size:14px;line-height:1.6}h1{font-size:22px;margin-bottom:4px}h2{font-size:16px;margin-top:18px;border-bottom:1px solid #dddad1;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{padding:5px 8px;border:1px solid #dddad1;font-size:13px}th{background:#f1eee6;text-align:left}code,pre{font-family:'IBM Plex Mono',ui-monospace,Consolas,monospace}code{background:#f1eee6;padding:1px 4px;border-radius:3px}pre{background:#f3f1ea;border:1px solid #dddad1;border-radius:6px;padding:10px 12px;overflow-x:auto}hr{border:none;border-top:1px solid #dddad1}</style></head><body>${mdToHtml(md)}</body></html>`)
   w.document.close()
   w.focus()
   w.print()

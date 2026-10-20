@@ -5,7 +5,7 @@ import { reportForFragments, reportToMarkdown } from '../core/report'
 import { Badge, DataTable, Notice, Panel, NumberField, SelectField, Checkbox, formatNum } from '../components/ui'
 import { downloadText } from './download'
 
-const COLORS = ['#22d3ee', '#3b82f6', '#8b5cf6', '#34d399', '#f59e0b', '#f87171']
+const COLORS = ['#315ccb', '#3f796e', '#c76b35', '#6b5a8f', '#4c565e', '#b23a2e']
 
 export function FragmentationModule() {
   const { state } = useStore()

@@ -21,12 +21,12 @@ export function StudioModule() {
   const link = topology.links.find((l) => l.id === state.selectedLinkId) ?? null
 
   const tools: { id: CanvasTool; label: string }[] = [
-    { id: 'select', label: '⬚ Select / move' },
-    { id: 'connect', label: '⤳ Connect' },
-    { id: 'add-router', label: '＋ Router' },
-    { id: 'add-host', label: '＋ Host' },
-    { id: 'add-server', label: '＋ Server' },
-    { id: 'delete', label: '⌫ Delete' },
+    { id: 'select', label: 'Select / move' },
+    { id: 'connect', label: 'Connect' },
+    { id: 'add-router', label: 'Add router' },
+    { id: 'add-host', label: 'Add host' },
+    { id: 'add-server', label: 'Add server' },
+    { id: 'delete', label: 'Delete' },
   ]
 
   function newId(prefix: string, taken: Set<string>): string {
@@ -111,7 +111,7 @@ export function StudioModule() {
                 <div className="pc-sum">{p.summary}</div>
               </button>
             ))}
-            <button className="btn ghost sm" onClick={() => dispatch({ type: 'newBlank' })}>＋ New blank topology</button>
+            <button className="btn ghost sm" onClick={() => dispatch({ type: 'newBlank' })}>New blank topology</button>
           </div>
         </Panel>
 
@@ -134,6 +134,20 @@ export function StudioModule() {
       </div>
 
       <div className="stack">
+        <section className="panel intro">
+          <div className="intro-index">01 — Topology studio</div>
+          <h2 className="intro-title">Build the network, then send a packet through it.</h2>
+          <p className="intro-body">
+            NetScope is a hands-on lab for the network layer. Arrange routers, hosts and servers, set link costs,
+            then break a link and watch every routing decision recompute. Everything you see is calculated live in
+            your browser from this topology — nothing is faked.
+          </p>
+          <div className="btn-row">
+            <button className="btn primary" onClick={() => dispatch({ type: 'setModule', module: 'packet' })}>Start a packet journey</button>
+            <button className="btn ghost" onClick={() => dispatch({ type: 'setModule', module: 'routing' })}>Compare routing algorithms</button>
+          </div>
+        </section>
+
         <Panel
           title="Network topology studio"
           hint={`${topology.nodes.length} nodes · ${topology.links.length} links · ${routers.length} routers`}

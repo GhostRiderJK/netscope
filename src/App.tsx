@@ -14,23 +14,111 @@ import { ReportModule } from './modules/ReportModule'
 
 interface NavEntry {
   id: ModuleId
-  icon: string
+  icon: IconName
   label: string
   group: string
 }
 
+export type IconName =
+  | 'studio'
+  | 'packet'
+  | 'routing'
+  | 'ipv4'
+  | 'frag'
+  | 'ipv6'
+  | 'icmp'
+  | 'circuit'
+  | 'challenges'
+  | 'report'
+
 const NAV: NavEntry[] = [
-  { id: 'studio', icon: '◉', label: 'Topology studio', group: 'Explore' },
-  { id: 'packet', icon: '➤', label: 'Packet journey', group: 'Explore' },
-  { id: 'routing', icon: '⚙', label: 'Routing algorithms', group: 'Explore' },
-  { id: 'ipv4', icon: '⊞', label: 'IPv4 & CIDR', group: 'Addressing' },
-  { id: 'frag', icon: '▤', label: 'Fragmentation lab', group: 'Addressing' },
-  { id: 'ipv6', icon: '⬡', label: 'IPv6 explorer', group: 'Addressing' },
-  { id: 'icmp', icon: '⇄', label: 'ICMP & traceroute', group: 'Diagnosis' },
-  { id: 'circuit', icon: '⛓', label: 'VC vs datagram', group: 'Diagnosis' },
-  { id: 'challenges', icon: '★', label: 'Challenge mode', group: 'Learn' },
-  { id: 'report', icon: '▤', label: 'Experiment report', group: 'Learn' },
+  { id: 'studio', icon: 'studio', label: 'Topology studio', group: 'Explore' },
+  { id: 'packet', icon: 'packet', label: 'Packet journey', group: 'Explore' },
+  { id: 'routing', icon: 'routing', label: 'Routing algorithms', group: 'Explore' },
+  { id: 'ipv4', icon: 'ipv4', label: 'IPv4 & CIDR', group: 'Addressing' },
+  { id: 'frag', icon: 'frag', label: 'Fragmentation lab', group: 'Addressing' },
+  { id: 'ipv6', icon: 'ipv6', label: 'IPv6 explorer', group: 'Addressing' },
+  { id: 'icmp', icon: 'icmp', label: 'ICMP & traceroute', group: 'Diagnosis' },
+  { id: 'circuit', icon: 'circuit', label: 'VC vs datagram', group: 'Diagnosis' },
+  { id: 'challenges', icon: 'challenges', label: 'Challenge mode', group: 'Learn' },
+  { id: 'report', icon: 'report', label: 'Experiment report', group: 'Learn' },
 ]
+
+const ICONS: Record<IconName, ReactNode> = {
+  studio: (
+    <>
+      <circle cx="5" cy="6" r="2" />
+      <rect x="14" y="4" width="5" height="5" rx="1" />
+      <circle cx="8" cy="18" r="2" />
+      <path d="M7 7l7 1M9 17l-2-9" />
+    </>
+  ),
+  packet: (
+    <>
+      <rect x="3" y="8" width="12" height="8" rx="1.5" />
+      <path d="M15 12h6M18 9l3 3-3 3" />
+    </>
+  ),
+  routing: (
+    <>
+      <circle cx="6" cy="6" r="2" />
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="12" r="2" />
+      <path d="M8 7l8 4M8 17l8-4" />
+    </>
+  ),
+  ipv4: (
+    <>
+      <rect x="3" y="3" width="8" height="8" rx="1" />
+      <rect x="13" y="3" width="8" height="8" rx="1" />
+      <rect x="3" y="13" width="8" height="8" rx="1" />
+      <rect x="13" y="13" width="8" height="8" rx="1" />
+    </>
+  ),
+  frag: (
+    <>
+      <rect x="3" y="8" width="6" height="8" rx="1" />
+      <rect x="10" y="8" width="4" height="8" rx="1" />
+      <rect x="15" y="8" width="6" height="8" rx="1" />
+    </>
+  ),
+  ipv6: (
+    <>
+      <path d="M12 3l7 4v10l-7 4-7-4V7z" />
+      <path d="M12 8v8M8 10v4M16 10v4" />
+    </>
+  ),
+  icmp: (
+    <>
+      <path d="M4 8h11l-3-3M20 16H9l3 3" />
+    </>
+  ),
+  circuit: (
+    <>
+      <path d="M8 12a4 4 0 014-4h2a4 4 0 010 8h-2" />
+      <path d="M16 12a4 4 0 01-4 4h-2a4 4 0 010-8h2" />
+    </>
+  ),
+  challenges: (
+    <>
+      <path d="M12 3l2.5 5.3 5.5.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.5-.8z" />
+    </>
+  ),
+  report: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M14 3v5h5M9 13h7M9 17h7" />
+    </>
+  ),
+}
+
+function Icon({ name }: { name: IconName }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
+  )
+}
 
 function renderModule(id: ModuleId): ReactNode {
   switch (id) {
@@ -84,11 +172,11 @@ function Shell() {
         <div className="brand">
           <div className="mark">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3" fill="#fff" />
-              <circle cx="5" cy="6" r="2" fill="#22d3ee" />
-              <circle cx="19" cy="6" r="2" fill="#22d3ee" />
-              <circle cx="6" cy="19" r="2" fill="#22d3ee" />
-              <g stroke="#22d3ee" strokeWidth="1.2" opacity="0.85">
+              <circle cx="12" cy="12" r="3" fill="#315ccb" />
+              <circle cx="5" cy="6" r="2" fill="#20282d" />
+              <circle cx="19" cy="6" r="2" fill="#20282d" />
+              <circle cx="6" cy="19" r="2" fill="#20282d" />
+              <g stroke="#315ccb" strokeWidth="1.2" opacity="0.6">
                 <line x1="12" y1="12" x2="5" y2="6" />
                 <line x1="12" y1="12" x2="19" y2="6" />
                 <line x1="12" y1="12" x2="6" y2="19" />
@@ -110,7 +198,9 @@ function Shell() {
                 className={`nav-item${state.activeModule === n.id ? ' active' : ''}`}
                 onClick={() => dispatch({ type: 'setModule', module: n.id })}
               >
-                <span className="nav-ico">{n.icon}</span>
+                <span className="nav-ico">
+                  <Icon name={n.icon} />
+                </span>
                 <span>{n.label}</span>
               </button>
             ))}

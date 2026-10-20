@@ -28,10 +28,11 @@ interface Props {
   onBackgroundClick?: () => void
 }
 
-const KIND_FILL: Record<NetNode['kind'], string> = {
-  router: '#1d4ed8',
-  host: '#155e75',
-  server: '#4c1d95',
+const INK = '#20282d'
+const KIND_ACCENT: Record<NetNode['kind'], string> = {
+  router: '#315ccb',
+  host: '#3f796e',
+  server: '#6b5a8f',
 }
 
 function useSize<T extends HTMLElement>() {
@@ -209,12 +210,12 @@ export function TopologyCanvas({
                   y1={a.y}
                   x2={b.x}
                   y2={b.y}
-                  stroke={isHi || isSel ? '#22d3ee' : undefined}
-                  strokeWidth={isHi || isSel ? 4 : undefined}
-                  opacity={isUsable(l) ? 1 : 0.85}
+                  stroke={isHi || isSel ? '#315ccb' : undefined}
+                  strokeWidth={isHi ? 3 : isSel ? 2.75 : undefined}
+                  opacity={isUsable(l) ? 1 : 0.55}
                 />
                 <g transform={`translate(${midX},${midY})`}>
-                  <rect x={-15} y={-11} width={30} height={16} rx={4} fill="var(--bg)" stroke={isSel ? '#22d3ee' : 'var(--border)'} strokeWidth={isSel ? 1.5 : 1} />
+                  <rect x={-14} y={-10} width={28} height={15} rx={3} fill="var(--panel)" stroke={isSel ? '#315ccb' : 'var(--border)'} strokeWidth={isSel ? 1.5 : 1} />
                   <text className="cost-label" textAnchor="middle" y={2}>
                     {l.cost}
                   </text>
@@ -228,12 +229,13 @@ export function TopologyCanvas({
           {/* nodes */}
           {topology.nodes.map((n) => {
             const isRouter = n.kind === 'router'
+            const isServer = n.kind === 'server'
             const selected = selectedNodeId === n.id
             const hi = highlightNodes.has(n.id) || routeSet.has(n.id)
             const isSrc = sourceId === n.id
             const isDst = destId === n.id
-            const stroke = selected || isSrc ? '#22d3ee' : hi ? '#3b82f6' : isDst ? '#34d399' : 'var(--border)'
-            const sw = selected || isSrc || isDst ? 3 : hi ? 2.5 : 1.5
+            const stroke = selected || isSrc ? '#315ccb' : hi ? '#315ccb' : isDst ? '#3f796e' : INK
+            const sw = selected || isSrc || isDst ? 2.5 : hi ? 2.25 : 1.5
             return (
               <g
                 key={n.id}
@@ -253,24 +255,31 @@ export function TopologyCanvas({
                 }}
               >
                 {isRouter ? (
-                  <circle r={20} fill={KIND_FILL.router} stroke={stroke} strokeWidth={sw} />
+                  <circle r={18} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
+                ) : isServer ? (
+                  <>
+                    <rect x={-19} y={-16} width={38} height={32} rx={3} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
+                    <line x1={-13} y1={-9} x2={13} y2={-9} stroke={KIND_ACCENT.server} strokeWidth={1.4} />
+                    <line x1={-13} y1={-5} x2={13} y2={-5} stroke={KIND_ACCENT.server} strokeWidth={1.4} opacity={0.55} />
+                  </>
                 ) : (
-                  <rect x={-19} y={-16} width={38} height={32} rx={7} fill={KIND_FILL[n.kind]} stroke={stroke} strokeWidth={sw} />
+                  <rect x={-19} y={-15} width={38} height={30} rx={9} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
                 )}
-                <text className="node-label" textAnchor="middle" y={isRouter ? 4 : 3}>
+                <rect x={-12} y={10.5} width={24} height={3} rx={1.5} fill={KIND_ACCENT[n.kind]} opacity={isRouter ? 0 : 0.9} />
+                <text className="node-label" textAnchor="middle" y={isRouter ? 4 : isServer ? 6 : 4}>
                   {n.label.length > 6 ? `${n.label.slice(0, 5)}…` : n.label}
                 </text>
-                <text className="node-sub" textAnchor="middle" y={isRouter ? 34 : 30}>
+                <text className="node-sub" textAnchor="middle" y={isRouter ? 32 : 30}>
                   {n.kind === 'router' ? (n.asNumber !== undefined ? `AS${n.asNumber}` : 'router') : n.ip ?? 'host'}
                 </text>
-                {isSrc ? <text className="node-sub" textAnchor="middle" y={-26} fill="#22d3ee">SRC</text> : null}
-                {isDst ? <text className="node-sub" textAnchor="middle" y={-26} fill="#34d399">DST</text> : null}
+                {isSrc ? <text className="node-sub" textAnchor="middle" y={-24} fill="#315ccb">SRC</text> : null}
+                {isDst ? <text className="node-sub" textAnchor="middle" y={-24} fill="#3f796e">DST</text> : null}
               </g>
             )
           })}
 
           {pendingLinkFrom && posById[pendingLinkFrom] ? (
-            <circle cx={posById[pendingLinkFrom]!.x} cy={posById[pendingLinkFrom]!.y} r={26} fill="none" stroke="#22d3ee" strokeWidth={1.5} strokeDasharray="4 4" />
+            <circle cx={posById[pendingLinkFrom]!.x} cy={posById[pendingLinkFrom]!.y} r={25} fill="none" stroke="#315ccb" strokeWidth={1.5} strokeDasharray="4 4" />
           ) : null}
 
           {packetAt ? <circle className="packet-marker" cx={packetAt.x} cy={packetAt.y} r={7} /> : null}
