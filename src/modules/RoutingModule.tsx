@@ -51,9 +51,7 @@ export function RoutingModule() {
           </div>
         </Panel>
         <Panel title="Topology" hint={`${topology.nodes.length} nodes · ${topology.links.length} links`}>
-          <div style={{ height: 380 }}>
-            <ViewCanvas topology={topology} tab={tab} />
-          </div>
+          <ViewCanvas topology={topology} tab={tab} />
         </Panel>
       </div>
 
@@ -111,7 +109,9 @@ function ViewCanvas({ topology, tab }: { topology: Topology; tab: Tab }) {
           options={topology.nodes.filter((n) => n.kind === 'router').map((n) => ({ value: n.id, label: n.label }))}
         />
       ) : null}
-      <TopologyCanvas topology={topology} interactive highlight={highlight} />
+      <div className={showRoot ? 'mt' : undefined} style={{ height: 380 }}>
+        <TopologyCanvas topology={topology} interactive highlight={highlight} />
+      </div>
     </>
   )
 }

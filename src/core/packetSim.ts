@@ -1,8 +1,35 @@
-import { CONGESTION_PENALTY, effectiveCost, isUsable, nodeById } from './graph'
+import { CONGESTION_PENALTY, effectiveCost, isUsable, linkById, nodeById } from './graph'
 import { describeSubnet, sameSubnet } from './ipv4'
 import { computeFragments } from './fragmentation'
 import { RoutingEngine, label, usableDirect, type DvOptions } from './routing'
 import type { FragmentInfo, RoutingAlgorithm, SimEvent, SimRun, Topology } from './types'
+
+/**
+ * Event kinds where the datagram actually moves over a link. `costUpTo` counts
+ * each link once — a fragmented link still costs one crossing.
+ */
+const TRAVERSAL_KINDS: SimEvent['kind'][] = ['gateway', 'forward', 'fragment', 'deliver']
+
+/**
+ * Cumulative cost of the links the packet has genuinely traversed by the time
+ * the animation reaches `upToIndex`. Pure and additive: it reads the same
+ * events `simulatePacket` produced, so the on-screen running total can never
+ * disagree with the final `run.totalCost`.
+ */
+export function costUpTo(events: SimEvent[], upToIndex: number, topology: Topology): number {
+  const counted = new Set<string>()
+  let cost = 0
+  for (let i = 0; i <= upToIndex && i < events.length; i += 1) {
+    const event = events[i]!
+    if (!event.linkId || !TRAVERSAL_KINDS.includes(event.kind)) continue
+    if (counted.has(event.linkId)) continue
+    const link = linkById(topology, event.linkId)
+    if (!link) continue
+    counted.add(event.linkId)
+    cost += effectiveCost(link)
+  }
+  return cost
+}
 
 export interface PacketRunInput {
   topology: Topology

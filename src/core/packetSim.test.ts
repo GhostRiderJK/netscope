@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hostPrefixTest, simulatePacket } from './packetSim'
+import { costUpTo, hostPrefixTest, simulatePacket } from './packetSim'
 import { chainFixture, chapterFixture } from './__fixtures'
 import { PRESETS } from './presets'
 import type { Topology } from './types'
@@ -228,5 +228,39 @@ describe('packet simulation — failures and edge cases', () => {
       headerLength: 20,
     })
     expect(run.result).toBe('unreachable')
+  })
+})
+
+describe('costUpTo — the animation running total', () => {
+  const topology = chainFixture()
+  const run = simulatePacket({
+    topology,
+    algorithm: 'link-state',
+    srcId: 'H1',
+    dstId: 'R1',
+    initialTtl: 8,
+    packetBytes: 100,
+    headerLength: 20,
+  })
+
+  it('is zero before the first event', () => {
+    expect(costUpTo(run.events, -1, topology)).toBe(0)
+  })
+
+  it('equals the final total cost once every event has played', () => {
+    expect(costUpTo(run.events, run.events.length - 1, topology)).toBe(run.totalCost)
+  })
+
+  it('only counts a link after the packet actually crosses it', () => {
+    const gatewayIdx = run.events.findIndex((e) => e.kind === 'gateway')
+    // Before leaving H1 nothing is traversed; the gateway handoff crosses exactly one cost-1 link.
+    expect(costUpTo(run.events, 0, topology)).toBe(0)
+    expect(costUpTo(run.events, gatewayIdx, topology)).toBe(1)
+  })
+
+  it('is monotonic as the timeline advances', () => {
+    const cumulative = run.events.map((_, i) => costUpTo(run.events, i, topology))
+    expect(cumulative.every((c, i) => i === 0 || c >= cumulative[i - 1]!)).toBe(true)
+    expect(cumulative.at(-1)).toBe(run.totalCost)
   })
 })

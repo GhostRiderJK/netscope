@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RoutingAlgorithm } from '../core/types'
-import { nodeById, effectiveCost, linkById } from '../core/graph'
-import { simulatePacket } from '../core/packetSim'
+import { nodeById, linkById } from '../core/graph'
+import { costUpTo, simulatePacket } from '../core/packetSim'
 import { useStore } from '../state/store'
 import { TopologyCanvas } from '../components/TopologyCanvas'
 import { Badge, Panel, SelectField, NumberField, Checkbox, formatNum } from '../components/ui'
@@ -64,7 +64,6 @@ export function PacketModule() {
   const current = idx >= 0 ? events[idx] : null
   const visitedNodes = useMemo(() => events.slice(0, idx + 1).map((e) => e.nodeId).filter(Boolean) as string[], [events, idx])
   const visitedLinks = useMemo(() => events.slice(0, idx + 1).map((e) => e.linkId).filter(Boolean) as string[], [events, idx])
-  const routeSoFar = run.path.slice(0, idx + 1)
 
   const packetAt = useMemo(() => {
     if (!current) return null
@@ -78,14 +77,7 @@ export function PacketModule() {
     return n ? { x: n.x, y: n.y } : null
   }, [current, topology])
 
-  const costSoFar = useMemo(() => {
-    let cost = 0
-    for (let i = 1; i < routeSoFar.length; i += 1) {
-      const link = topology.links.find((l) => (l.a === routeSoFar[i - 1] && l.b === routeSoFar[i]) || (l.a === routeSoFar[i] && l.b === routeSoFar[i - 1]))
-      if (link) cost += effectiveCost(link)
-    }
-    return cost
-  }, [routeSoFar, topology])
+  const costSoFar = useMemo(() => costUpTo(events, idx, topology), [events, idx, topology])
 
   const srcNode = nodeById(topology, cfg.srcId)
   const dstNode = nodeById(topology, cfg.dstId)
@@ -95,40 +87,19 @@ export function PacketModule() {
 
   const resultTone = run.result === 'delivered' ? 'ok' : run.result === 'routing-loop' || run.result === 'ttl-expired' ? 'warn' : 'bad'
 
+  const atEnd = events.length > 0 && idx >= events.length - 1
+  const notStarted = idx < 0
+  const badge: { tone: 'ok' | 'warn' | 'bad' | 'info'; label: string } = notStarted
+    ? { tone: 'info', label: 'ready' }
+    : atEnd
+      ? { tone: resultTone, label: run.result }
+      : { tone: 'info', label: 'in progress' }
+
   return (
-    <div className="workspace cols-sim">
-      <div className="stack">
-        <Panel title="Configure the datagram">
-          <SelectField label="Source" value={cfg.srcId} onChange={(v) => dispatch({ type: 'setPacket', patch: { srcId: v } })} options={topology.nodes.map((n) => ({ value: n.id, label: n.label }))} />
-          <SelectField label="Destination" value={cfg.dstId} onChange={(v) => dispatch({ type: 'setPacket', patch: { dstId: v } })} options={topology.nodes.map((n) => ({ value: n.id, label: n.label }))} />
-          <SelectField label="Routing algorithm" value={cfg.algorithm} onChange={(v) => dispatch({ type: 'setPacket', patch: { algorithm: v } })} options={ALGORITHMS} />
-          <div className="row-grid">
-            <NumberField label="Packet size (B)" value={cfg.packetBytes} min={20} max={65535} onChange={(n) => dispatch({ type: 'setPacket', patch: { packetBytes: clamp(n, 20, 65535) } })} />
-            <NumberField label="Header length (B)" value={cfg.headerLength} min={20} max={60} step={4} onChange={(n) => dispatch({ type: 'setPacket', patch: { headerLength: clamp(Math.round(n / 4) * 4, 20, 60) } })} />
-            <NumberField label="Initial TTL" value={cfg.initialTtl} min={1} max={255} onChange={(n) => dispatch({ type: 'setPacket', patch: { initialTtl: clamp(n, 1, 255) } })} />
-            <NumberField label="Packet count" value={cfg.count} min={1} max={20} onChange={(n) => dispatch({ type: 'setPacket', patch: { count: clamp(n, 1, 20) } })} />
-          </div>
-          <div className="row-grid">
-            <Field label={`Speed · ${cfg.speed}×`}>
-              <input type="range" min={0.5} max={4} step={0.5} value={cfg.speed} onChange={(e) => dispatch({ type: 'setPacket', patch: { speed: Number(e.target.value) } })} />
-            </Field>
-          </div>
-          <Checkbox label="Don't Fragment (DF=1)" checked={cfg.dontFragment} onChange={(v) => dispatch({ type: 'setPacket', patch: { dontFragment: v } })} />
-        </Panel>
-
-        <Panel title="Result" actions={<Badge tone={resultTone}>{run.result}</Badge>}>
-          <div className="kv"><span className="k">Path</span><span className="v">{run.path.map((id) => nodeById(topology, id)?.label ?? id).join(' → ')}</span></div>
-          <div className="kv"><span className="k">Hops</span><span className="v">{run.hops}</span></div>
-          <div className="kv"><span className="k">Total cost</span><span className="v">{formatNum(run.totalCost)}</span></div>
-          <div className="kv"><span className="k">TTL used</span><span className="v">{run.initialTtl - run.finalTtl} (→ {run.finalTtl})</span></div>
-          {run.fragments.length ? <div className="kv"><span className="k">Fragments</span><span className="v">{run.fragments.length} on {new Set(run.fragments.map((f) => f.linkId)).size} link(s)</span></div> : null}
-          <p className="hint mt">{run.detail}</p>
-        </Panel>
-      </div>
-
+    <div className="workspace cols-2">
       <div className="stack">
         <Panel title="Live journey" hint={playing ? 'Animating real simulation events…' : idx >= 0 ? 'Paused on a step.' : 'Press Play to send the datagram.'}>
-          <div style={{ height: 420 }}>
+          <div style={{ height: 460 }}>
             <TopologyCanvas
               topology={topology}
               sourceId={cfg.srcId}
@@ -149,26 +120,13 @@ export function PacketModule() {
           <div className="small muted" style={{ textAlign: 'center', marginTop: 6 }}>
             Step {Math.max(0, idx + 1)} / {events.length} · datagram {cfg.count > 1 ? `1 of ${cfg.count} identical packets share this route` : '1'}
           </div>
-        </Panel>
-      </div>
-
-      <div className="stack inspector">
-        <Panel title="Packet inspection">
-          <div className="kv"><span className="k">Source IP</span><span className="v">{srcNode?.ip ?? srcNode?.label ?? '—'}</span></div>
-          <div className="kv"><span className="k">Dest IP</span><span className="v">{dstNode?.ip ?? dstNode?.label ?? '—'}</span></div>
-          <div className="kv"><span className="k">Current router</span><span className="v">{currentRouter?.label ?? '—'}</span></div>
-          <div className="kv"><span className="k">Next hop</span><span className="v">{nextHop?.label ?? '—'}</span></div>
-          <div className="kv"><span className="k">Out link</span><span className="v">{current?.linkId ? linkById(topology, current.linkId)?.id ?? '—' : '—'}</span></div>
-          <div className="kv"><span className="k">TTL now</span><span className="v">{current ? current.ttl : run.initialTtl}</span></div>
-          <div className="kv"><span className="k">On wire</span><span className="v">{current ? current.packetSize : cfg.packetBytes} B</span></div>
-          <div className="kv"><span className="k">Cost so far</span><span className="v">{formatNum(costSoFar)}</span></div>
           {current ? (
             <div className="notice info mt" style={{ fontSize: 12.5 }}>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{current.text}</div>
               <div className="muted">{current.why}</div>
             </div>
           ) : (
-            <p className="hint mt">Select Play or Step to see the router's forwarding decision here.</p>
+            <p className="hint mt">Press Play or Step to send the datagram and follow its forwarding decisions here.</p>
           )}
         </Panel>
 
@@ -185,6 +143,46 @@ export function PacketModule() {
               </div>
             ))}
           </div>
+        </Panel>
+      </div>
+
+      <div className="stack inspector">
+        <Panel title="Configure the datagram">
+          <SelectField label="Source" value={cfg.srcId} onChange={(v) => dispatch({ type: 'setPacket', patch: { srcId: v } })} options={topology.nodes.map((n) => ({ value: n.id, label: n.label }))} />
+          <SelectField label="Destination" value={cfg.dstId} onChange={(v) => dispatch({ type: 'setPacket', patch: { dstId: v } })} options={topology.nodes.map((n) => ({ value: n.id, label: n.label }))} />
+          <SelectField label="Routing algorithm" value={cfg.algorithm} onChange={(v) => dispatch({ type: 'setPacket', patch: { algorithm: v } })} options={ALGORITHMS} />
+          <div className="row-grid">
+            <NumberField label="Packet size (B)" value={cfg.packetBytes} min={20} max={65535} onChange={(n) => dispatch({ type: 'setPacket', patch: { packetBytes: clamp(n, 20, 65535) } })} />
+            <NumberField label="Header length (B)" value={cfg.headerLength} min={20} max={60} step={4} onChange={(n) => dispatch({ type: 'setPacket', patch: { headerLength: clamp(Math.round(n / 4) * 4, 20, 60) } })} />
+            <NumberField label="Initial TTL" value={cfg.initialTtl} min={1} max={255} onChange={(n) => dispatch({ type: 'setPacket', patch: { initialTtl: clamp(n, 1, 255) } })} />
+            <NumberField label="Packet count" value={cfg.count} min={1} max={20} onChange={(n) => dispatch({ type: 'setPacket', patch: { count: clamp(n, 1, 20) } })} />
+          </div>
+          <div className="row-grid">
+            <Field label={`Speed · ${cfg.speed}×`}>
+              <input type="range" min={0.5} max={4} step={0.5} value={cfg.speed} onChange={(e) => dispatch({ type: 'setPacket', patch: { speed: Number(e.target.value) } })} />
+            </Field>
+          </div>
+          <Checkbox label="Don't Fragment (DF=1)" checked={cfg.dontFragment} onChange={(v) => dispatch({ type: 'setPacket', patch: { dontFragment: v } })} />
+        </Panel>
+
+        <Panel title="Packet inspection">
+          <div className="kv"><span className="k">Source IP</span><span className="v">{srcNode?.ip ?? srcNode?.label ?? '—'}</span></div>
+          <div className="kv"><span className="k">Dest IP</span><span className="v">{dstNode?.ip ?? dstNode?.label ?? '—'}</span></div>
+          <div className="kv"><span className="k">Current router</span><span className="v">{currentRouter?.label ?? '—'}</span></div>
+          <div className="kv"><span className="k">Next hop</span><span className="v">{nextHop?.label ?? '—'}</span></div>
+          <div className="kv"><span className="k">Out link</span><span className="v">{current?.linkId ? linkById(topology, current.linkId)?.id ?? '—' : '—'}</span></div>
+          <div className="kv"><span className="k">TTL now</span><span className="v">{current ? current.ttl : run.initialTtl}</span></div>
+          <div className="kv"><span className="k">On wire</span><span className="v">{current ? current.packetSize : cfg.packetBytes} B</span></div>
+          <div className="kv"><span className="k">Cost so far</span><span className="v">{formatNum(costSoFar)}</span></div>
+        </Panel>
+
+        <Panel title="Result" actions={<Badge tone={badge.tone}>{badge.label}</Badge>}>
+          <div className="kv"><span className="k">Path</span><span className="v">{run.path.map((id) => nodeById(topology, id)?.label ?? id).join(' → ')}</span></div>
+          <div className="kv"><span className="k">Hops</span><span className="v">{run.hops}</span></div>
+          <div className="kv"><span className="k">Total cost</span><span className="v">{formatNum(run.totalCost)}</span></div>
+          <div className="kv"><span className="k">TTL used</span><span className="v">{run.initialTtl - run.finalTtl} (→ {run.finalTtl})</span></div>
+          {run.fragments.length ? <div className="kv"><span className="k">Fragments</span><span className="v">{run.fragments.length} on {new Set(run.fragments.map((f) => f.linkId)).size} link(s)</span></div> : null}
+          <p className="hint mt">{run.detail}</p>
         </Panel>
       </div>
     </div>

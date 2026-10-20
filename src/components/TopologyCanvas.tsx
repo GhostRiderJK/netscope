@@ -71,6 +71,7 @@ export function TopologyCanvas({
   const { ref, size } = useSize<HTMLDivElement>()
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [view, setView] = useState({ k: 1, x: 0, y: 0 })
+  const [legendOpen, setLegendOpen] = useState(true)
   const drag = useRef<{ id: string; moved: boolean } | null>(null)
   const pan = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
 
@@ -97,16 +98,17 @@ export function TopologyCanvas({
     setView({ k, x: (size.width - box.w * k) / 2 - box.x * k, y: (size.height - box.h * k) / 2 - box.y * k })
   }, [contentBox, size.width, size.height])
 
-  // Auto-fit when a different topology is loaded.
-  const fittedFor = useRef<string>('')
+  // Auto-fit on load, when a different topology is loaded, and whenever the
+  // container resizes, so the drawing is never cropped. `fit` is kept in a ref
+  // so dragging a node (which changes fit's identity) does not retrigger a fit.
+  const fitRef = useRef(fit)
   useEffect(() => {
-    if (fittedFor.current !== topology.id || topology.nodes.length === 0) {
-      if (fittedFor.current !== topology.id) {
-        fittedFor.current = topology.id
-        fit()
-      }
-    }
-  }, [topology.id, topology.nodes.length, fit])
+    fitRef.current = fit
+  })
+  const hasNodes = topology.nodes.length > 0
+  useEffect(() => {
+    if (hasNodes) fitRef.current()
+  }, [hasNodes, topology.id, size.width, size.height])
 
   const toWorld = useCallback(
     (clientX: number, clientY: number) => {
@@ -164,145 +166,158 @@ export function TopologyCanvas({
   const addKind = tool === 'add-router' ? 'router' : tool === 'add-host' ? 'host' : tool === 'add-server' ? 'server' : null
 
   return (
-    <div className="canvas-frame" ref={ref} style={{ height: '100%', minHeight: 360 }}>
-      <svg
-        ref={svgRef}
-        className={`graph${pan.current ? ' panning' : ''}`}
-        onWheel={onWheel}
-        onPointerDown={(e) => {
-          if ((e.target as Element).getAttribute('data-role') === 'background') onPointerDownBg(e)
-        }}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-      >
-        <rect
-          data-role="background"
-          x={0}
-          y={0}
-          width={size.width}
-          height={size.height}
-          fill="transparent"
-          onClick={() => (tool === 'select' ? onBackgroundClick?.() : undefined)}
-        />
-        <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-          {/* links */}
-          {topology.links.map((l) => {
-            const a = posById[l.a]
-            const b = posById[l.b]
-            if (!a || !b) return null
-            const midX = (a.x + b.x) / 2
-            const midY = (a.y + b.y) / 2
-            const isHi = highlightLinks.has(l.id)
-            const isSel = selectedLinkId === l.id
-            const cls = `link-line${l.status === 'failed' ? ' failed' : ''}${l.status === 'congested' ? ' congested' : ''}`
-            return (
-              <g key={l.id}
-                onPointerDown={(e) => {
-                  e.stopPropagation()
-                  onLinkClick?.(l.id)
-                }}
-              >
-                <line data-role="link" className="link-hit" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-                <line
-                  className={cls}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={isHi || isSel ? '#315ccb' : undefined}
-                  strokeWidth={isHi ? 3 : isSel ? 2.75 : undefined}
-                  opacity={isUsable(l) ? 1 : 0.55}
-                />
-                <g transform={`translate(${midX},${midY})`}>
-                  <rect x={-14} y={-10} width={28} height={15} rx={3} fill="var(--panel)" stroke={isSel ? '#315ccb' : 'var(--border)'} strokeWidth={isSel ? 1.5 : 1} />
-                  <text className="cost-label" textAnchor="middle" y={2}>
-                    {l.cost}
-                  </text>
+    <div className="canvas-wrap" style={{ height: '100%', minHeight: 360 }}>
+      <div className="canvas-frame" ref={ref}>
+        <svg
+          ref={svgRef}
+          className={`graph${pan.current ? ' panning' : ''}`}
+          onWheel={onWheel}
+          onPointerDown={(e) => {
+            if ((e.target as Element).getAttribute('data-role') === 'background') onPointerDownBg(e)
+          }}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerLeave={endDrag}
+        >
+          <rect
+            data-role="background"
+            x={0}
+            y={0}
+            width={size.width}
+            height={size.height}
+            fill="transparent"
+            onClick={() => (tool === 'select' ? onBackgroundClick?.() : undefined)}
+          />
+          <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
+            {/* links */}
+            {topology.links.map((l) => {
+              const a = posById[l.a]
+              const b = posById[l.b]
+              if (!a || !b) return null
+              const midX = (a.x + b.x) / 2
+              const midY = (a.y + b.y) / 2
+              const isHi = highlightLinks.has(l.id)
+              const isSel = selectedLinkId === l.id
+              const cls = `link-line${l.status === 'failed' ? ' failed' : ''}${l.status === 'congested' ? ' congested' : ''}`
+              return (
+                <g key={l.id}
+                  onPointerDown={(e) => {
+                    e.stopPropagation()
+                    onLinkClick?.(l.id)
+                  }}
+                >
+                  <line data-role="link" className="link-hit" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+                  <line
+                    className={cls}
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke={isHi || isSel ? '#315ccb' : undefined}
+                    strokeWidth={isHi ? 3 : isSel ? 2.75 : undefined}
+                    opacity={isUsable(l) ? 1 : 0.55}
+                  />
+                  <g transform={`translate(${midX},${midY})`}>
+                    <rect x={-14} y={-10} width={28} height={15} rx={3} fill="var(--panel)" stroke={isSel ? '#315ccb' : 'var(--border)'} strokeWidth={isSel ? 1.5 : 1} />
+                    <text className="cost-label" textAnchor="middle" y={2}>
+                      {l.cost}
+                    </text>
+                  </g>
                 </g>
-              </g>
-            )
-          })}
+              )
+            })}
 
-          {/* pending connect line follows not needed; highlight between source & cursor handled in parent */}
+            {/* pending connect line follows not needed; highlight between source & cursor handled in parent */}
 
-          {/* nodes */}
-          {topology.nodes.map((n) => {
-            const isRouter = n.kind === 'router'
-            const isServer = n.kind === 'server'
-            const selected = selectedNodeId === n.id
-            const hi = highlightNodes.has(n.id) || routeSet.has(n.id)
-            const isSrc = sourceId === n.id
-            const isDst = destId === n.id
-            const stroke = selected || isSrc ? '#315ccb' : hi ? '#315ccb' : isDst ? '#3f796e' : INK
-            const sw = selected || isSrc || isDst ? 2.5 : hi ? 2.25 : 1.5
-            return (
-              <g
-                key={n.id}
-                transform={`translate(${n.x},${n.y})`}
-                className="node-shape"
-                onPointerDown={(e) => {
-                  if (!interactive) return
-                  e.stopPropagation()
-                  if (tool === 'select' || tool === 'connect' || tool === 'delete') drag.current = { id: n.id, moved: false }
-                }}
-                onPointerUp={(e) => {
-                  if (!interactive) return
-                  e.stopPropagation()
-                  if (drag.current && !drag.current.moved) onNodeClick?.(n.id)
-                  else if (!drag.current) onNodeClick?.(n.id)
-                  drag.current = null
-                }}
-              >
-                {isRouter ? (
-                  <circle r={18} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
-                ) : isServer ? (
-                  <>
-                    <rect x={-19} y={-16} width={38} height={32} rx={3} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
-                    <line x1={-13} y1={-9} x2={13} y2={-9} stroke={KIND_ACCENT.server} strokeWidth={1.4} />
-                    <line x1={-13} y1={-5} x2={13} y2={-5} stroke={KIND_ACCENT.server} strokeWidth={1.4} opacity={0.55} />
-                  </>
-                ) : (
-                  <rect x={-19} y={-15} width={38} height={30} rx={9} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
-                )}
-                <rect x={-12} y={10.5} width={24} height={3} rx={1.5} fill={KIND_ACCENT[n.kind]} opacity={isRouter ? 0 : 0.9} />
-                <text className="node-label" textAnchor="middle" y={isRouter ? 4 : isServer ? 6 : 4}>
-                  {n.label.length > 6 ? `${n.label.slice(0, 5)}…` : n.label}
-                </text>
-                <text className="node-sub" textAnchor="middle" y={isRouter ? 32 : 30}>
-                  {n.kind === 'router' ? (n.asNumber !== undefined ? `AS${n.asNumber}` : 'router') : n.ip ?? 'host'}
-                </text>
-                {isSrc ? <text className="node-sub" textAnchor="middle" y={-24} fill="#315ccb">SRC</text> : null}
-                {isDst ? <text className="node-sub" textAnchor="middle" y={-24} fill="#3f796e">DST</text> : null}
-              </g>
-            )
-          })}
+            {/* nodes */}
+            {topology.nodes.map((n) => {
+              const isRouter = n.kind === 'router'
+              const isServer = n.kind === 'server'
+              const selected = selectedNodeId === n.id
+              const hi = highlightNodes.has(n.id) || routeSet.has(n.id)
+              const isSrc = sourceId === n.id
+              const isDst = destId === n.id
+              const stroke = selected || isSrc ? '#315ccb' : hi ? '#315ccb' : isDst ? '#3f796e' : INK
+              const sw = selected || isSrc || isDst ? 2.5 : hi ? 2.25 : 1.5
+              return (
+                <g
+                  key={n.id}
+                  transform={`translate(${n.x},${n.y})`}
+                  className="node-shape"
+                  onPointerDown={(e) => {
+                    if (!interactive) return
+                    e.stopPropagation()
+                    if (tool === 'select' || tool === 'connect' || tool === 'delete') drag.current = { id: n.id, moved: false }
+                  }}
+                  onPointerUp={(e) => {
+                    if (!interactive) return
+                    e.stopPropagation()
+                    if (drag.current && !drag.current.moved) onNodeClick?.(n.id)
+                    else if (!drag.current) onNodeClick?.(n.id)
+                    drag.current = null
+                  }}
+                >
+                  {isRouter ? (
+                    <circle r={18} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
+                  ) : isServer ? (
+                    <>
+                      <rect x={-19} y={-16} width={38} height={32} rx={3} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
+                      <line x1={-13} y1={-9} x2={13} y2={-9} stroke={KIND_ACCENT.server} strokeWidth={1.4} />
+                      <line x1={-13} y1={-5} x2={13} y2={-5} stroke={KIND_ACCENT.server} strokeWidth={1.4} opacity={0.55} />
+                    </>
+                  ) : (
+                    <rect x={-19} y={-15} width={38} height={30} rx={9} fill="var(--panel)" stroke={stroke} strokeWidth={sw} />
+                  )}
+                  <rect x={-12} y={10.5} width={24} height={3} rx={1.5} fill={KIND_ACCENT[n.kind]} opacity={isRouter ? 0 : 0.9} />
+                  <text className="node-label" textAnchor="middle" y={isRouter ? 34 : isServer ? 32 : 31}>
+                    {n.label}
+                  </text>
+                  <text className="node-sub" textAnchor="middle" y={isRouter ? 47 : isServer ? 45 : 44}>
+                    {n.kind === 'router' ? (n.asNumber !== undefined ? `AS${n.asNumber}` : 'router') : n.ip ?? 'host'}
+                  </text>
+                  {isSrc ? <text className="node-sub" textAnchor="middle" y={-24} fill="#315ccb">SRC</text> : null}
+                  {isDst ? <text className="node-sub" textAnchor="middle" y={-24} fill="#3f796e">DST</text> : null}
+                  <title>{n.ip ? `${n.label} · ${n.ip}${n.prefix !== undefined ? `/${n.prefix}` : ''}` : n.label}</title>
+                </g>
+              )
+            })}
 
-          {pendingLinkFrom && posById[pendingLinkFrom] ? (
-            <circle cx={posById[pendingLinkFrom]!.x} cy={posById[pendingLinkFrom]!.y} r={25} fill="none" stroke="#315ccb" strokeWidth={1.5} strokeDasharray="4 4" />
-          ) : null}
+            {pendingLinkFrom && posById[pendingLinkFrom] ? (
+              <circle cx={posById[pendingLinkFrom]!.x} cy={posById[pendingLinkFrom]!.y} r={25} fill="none" stroke="#315ccb" strokeWidth={1.5} strokeDasharray="4 4" />
+            ) : null}
 
-          {packetAt ? <circle className="packet-marker" cx={packetAt.x} cy={packetAt.y} r={7} /> : null}
-        </g>
-      </svg>
+            {packetAt ? <circle className="packet-marker" cx={packetAt.x} cy={packetAt.y} r={7} /> : null}
+          </g>
+        </svg>
 
-      {interactive ? (
-        <div className="canvas-toolbar">
-          <button className="btn sm ghost" title="Zoom out" onClick={() => setView((v) => ({ ...v, k: Math.max(0.2, v.k / 1.2), x: size.width / 2 - ((size.width / 2 - v.x) * (v.k / 1.2)) / v.k, y: size.height / 2 - ((size.height / 2 - v.y) * (v.k / 1.2)) / v.k }))}>−</button>
-          <button className="btn sm ghost" title="Zoom in" onClick={() => setView((v) => ({ ...v, k: Math.min(3.2, v.k * 1.2) }))}>+</button>
-          <button className="btn sm ghost" title="Fit to screen" onClick={fit}>Fit</button>
-          <button className="btn sm ghost" title="Reset zoom" onClick={() => setView({ k: 1, x: 0, y: 0 })}>1:1</button>
+        {interactive ? (
+          <div className="canvas-toolbar">
+            <button className="btn sm ghost" title="Zoom out" onClick={() => setView((v) => ({ ...v, k: Math.max(0.2, v.k / 1.2), x: size.width / 2 - ((size.width / 2 - v.x) * (v.k / 1.2)) / v.k, y: size.height / 2 - ((size.height / 2 - v.y) * (v.k / 1.2)) / v.k }))}>−</button>
+            <button className="btn sm ghost" title="Zoom in" onClick={() => setView((v) => ({ ...v, k: Math.min(3.2, v.k * 1.2) }))}>+</button>
+            <button className="btn sm ghost" title="Fit to screen" onClick={fit}>Fit</button>
+            <button className="btn sm ghost" title="Reset zoom" onClick={() => setView({ k: 1, x: 0, y: 0 })}>1:1</button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="canvas-under">
+        <div className="canvas-context">
+          {addKind ? <span className="badge info">click canvas to place a {addKind}</span> : null}
+          {tool === 'connect' ? <span className="badge info">connect: click two routers</span> : null}
+          {tool === 'delete' ? <span className="badge bad">delete: click a node or link</span> : null}
         </div>
-      ) : null}
-
-      <div className="canvas-legend">
-        <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--active-link)' }} /> active</span>
-        <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--warn)' }} /> congested</span>
-        <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--bad)' }} /> failed</span>
-        <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--packet)' }} /> route / packet</span>
-        {addKind ? <span className="badge info">click canvas to place a {addKind}</span> : null}
-        {tool === 'connect' ? <span className="badge info">connect: click two routers</span> : null}
-        {tool === 'delete' ? <span className="badge bad">delete: click a node or link</span> : null}
+        <button className="legend-toggle" aria-expanded={legendOpen} onClick={() => setLegendOpen((o) => !o)}>
+          <span>Legend</span>
+          <span className="legend-caret">{legendOpen ? '▾' : '▸'}</span>
+        </button>
+        {legendOpen ? (
+          <div className="canvas-legend">
+            <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--active-link)' }} /> active</span>
+            <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--warn)' }} /> congested</span>
+            <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--bad)' }} /> failed</span>
+            <span className="legend-key"><span className="legend-swatch" style={{ background: 'var(--packet)' }} /> route / packet</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

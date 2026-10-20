@@ -104,6 +104,20 @@ describe('Subnet membership and the host forwarding decision', () => {
     expect(d.reason).toMatch(/own subnet|local ARP/i)
   })
 
+  it('explains same-subnet delivery from the real destination, not a placeholder', () => {
+    const d = deliveryDecision('192.168.10.130', 26, '192.168.10.150', '192.168.10.191')
+    expect(d.reason).toContain('192.168.10.150')
+    expect(d.reason).not.toContain('8.8.8.8')
+  })
+
+  it('explains remote delivery using the entered Host B and gateway', () => {
+    const d = deliveryDecision('192.168.10.130', 26, '192.168.20.10', '192.168.10.129')
+    expect(d.mode).toBe('gateway')
+    expect(d.reason).toContain('192.168.20.10')
+    expect(d.reason).toContain('192.168.10.129')
+    expect(d.reason).not.toContain('8.8.8.8')
+  })
+
   it('sends remote traffic to the gateway', () => {
     const d = deliveryDecision('192.168.10.130', 26, '192.168.20.10', '192.168.10.129')
     expect(d.mode).toBe('gateway')

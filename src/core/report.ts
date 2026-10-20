@@ -105,12 +105,14 @@ export function reportToMarkdown(report: ExperimentReport): string {
     for (const c of report.configuration) lines.push(`- **${c.label}:** ${c.value}`)
     lines.push('')
   }
+  lines.push('## Assumptions')
+  lines.push('')
   if (report.assumptions.length) {
-    lines.push('## Assumptions')
-    lines.push('')
     for (const a of report.assumptions) lines.push(`- ${a}`)
-    lines.push('')
+  } else {
+    lines.push('- No module-specific assumptions beyond the shared model notes in Known limitations.')
   }
+  lines.push('')
   lines.push('## Network inventory')
   lines.push('')
   lines.push(`| Node | Kind | Address | AS | Neighbours |`)

@@ -97,50 +97,14 @@ export function StudioModule() {
   }
 
   return (
-    <div className="workspace cols-sim">
-      <div className="stack">
-        <Panel title="Presets">
-          <div className="stack" style={{ gap: 8 }}>
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                className={`preset-card${topology.id === p.id ? ' active' : ''}`}
-                onClick={() => dispatch({ type: 'loadPreset', id: p.id })}
-              >
-                <div className="pc-name">{p.name}</div>
-                <div className="pc-sum">{p.summary}</div>
-              </button>
-            ))}
-            <button className="btn ghost sm" onClick={() => dispatch({ type: 'newBlank' })}>New blank topology</button>
-          </div>
-        </Panel>
-
-        <Panel title="Saved on this device" hint="Persisted in your browser.">
-          {state.savedTopologies.length === 0 ? (
-            <p className="hint">Nothing saved yet. Use “Save current” below the canvas.</p>
-          ) : (
-            <div className="stack" style={{ gap: 6 }}>
-              {state.savedTopologies.map((s) => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button className="btn sm ghost" style={{ flex: 1, justifyContent: 'flex-start' }} onClick={() => dispatch({ type: 'loadSaved', id: s.id })}>
-                    {s.name}
-                  </button>
-                  <button className="btn sm danger" onClick={() => dispatch({ type: 'deleteSaved', id: s.id })}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
-      </div>
-
+    <div className="workspace cols-2">
       <div className="stack">
         <section className="panel intro">
           <div className="intro-index">01 — Topology studio</div>
           <h2 className="intro-title">Build the network, then send a packet through it.</h2>
           <p className="intro-body">
             NetScope is a hands-on lab for the network layer. Arrange routers, hosts and servers, set link costs,
-            then break a link and watch every routing decision recompute. Everything you see is calculated live in
-            your browser from this topology — nothing is faked.
+            then break a link and watch every routing decision recompute — live in your browser, from this topology.
           </p>
           <div className="btn-row">
             <button className="btn primary" onClick={() => dispatch({ type: 'setModule', module: 'packet' })}>Start a packet journey</button>
@@ -149,8 +113,8 @@ export function StudioModule() {
         </section>
 
         <Panel
-          title="Network topology studio"
-          hint={`${topology.nodes.length} nodes · ${topology.links.length} links · ${routers.length} routers`}
+          title="Toolbar"
+          hint="Pick a tool, then work on the canvas."
           actions={
             <>
               <button className="btn sm" onClick={saveCustom}>Save current</button>
@@ -158,14 +122,20 @@ export function StudioModule() {
             </>
           }
         >
-          <div className="btn-row" style={{ marginBottom: 12 }}>
+          <div className="btn-row">
             {tools.map((t) => (
               <button key={t.id} className={`btn sm${tool === t.id ? ' primary' : ''}`} onClick={() => { setTool(t.id); setPendingFrom(null) }}>
                 {t.label}
               </button>
             ))}
           </div>
-          <div style={{ height: 460 }}>
+        </Panel>
+
+        <Panel
+          title="Network topology studio"
+          hint={`${topology.nodes.length} nodes · ${topology.links.length} links · ${routers.length} routers`}
+        >
+          <div style={{ height: 540 }}>
             <TopologyCanvas
               topology={topology}
               tool={tool}
@@ -192,18 +162,6 @@ export function StudioModule() {
           ) : (
             <div className="mt small muted">Topology is structurally valid — every simulation module can run on it.</div>
           )}
-        </Panel>
-
-        <Panel title="Import topology">
-          <textarea
-            value={importText}
-            placeholder='Paste NetScope topology JSON here…'
-            onChange={(e) => setImportText(e.target.value)}
-          />
-          <div className="btn-row mt">
-            <button className="btn primary sm" onClick={doImport} disabled={!importText.trim()}>Import</button>
-            {importMsg ? <Notice tone={importMsg.tone}>{importMsg.text}</Notice> : null}
-          </div>
         </Panel>
       </div>
 
@@ -233,9 +191,62 @@ export function StudioModule() {
           />
           <button className="btn sm" onClick={() => dispatch({ type: 'setModule', module: 'packet' })}>Send a packet →</button>
         </Panel>
+
+        <Panel title="Presets" hint="Load a worked scenario onto the canvas.">
+          <div className="stack" style={{ gap: 8 }}>
+            {PRESETS.map((p) => (
+              <div key={p.id} className={`preset-card${topology.id === p.id ? ' active' : ''}`}>
+                <div className="pc-head">
+                  <div className="pc-name">{p.name}</div>
+                  <button className="btn sm primary" onClick={() => dispatch({ type: 'loadPreset', id: p.id })}>Load</button>
+                </div>
+                <div className="pc-sum">{firstSentence(p.summary)}</div>
+                <details className="pc-more">
+                  <summary>Full description</summary>
+                  <p className="small muted mt">{p.summary}</p>
+                </details>
+              </div>
+            ))}
+            <button className="btn ghost sm" onClick={() => dispatch({ type: 'newBlank' })}>New blank topology</button>
+          </div>
+        </Panel>
+
+        <Panel title="Saved on this device" hint="Persisted in your browser.">
+          {state.savedTopologies.length === 0 ? (
+            <p className="hint">Nothing saved yet. Use "Save current" in the toolbar.</p>
+          ) : (
+            <div className="stack" style={{ gap: 6 }}>
+              {state.savedTopologies.map((s) => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button className="btn sm ghost" style={{ flex: 1, justifyContent: 'flex-start' }} onClick={() => dispatch({ type: 'loadSaved', id: s.id })}>
+                    {s.name}
+                  </button>
+                  <button className="btn sm danger" onClick={() => dispatch({ type: 'deleteSaved', id: s.id })}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Import topology">
+          <textarea
+            value={importText}
+            placeholder='Paste NetScope topology JSON here…'
+            onChange={(e) => setImportText(e.target.value)}
+          />
+          <div className="btn-row mt">
+            <button className="btn primary sm" onClick={doImport} disabled={!importText.trim()}>Import</button>
+            {importMsg ? <Notice tone={importMsg.tone}>{importMsg.text}</Notice> : null}
+          </div>
+        </Panel>
       </div>
     </div>
   )
+}
+
+function firstSentence(text: string): string {
+  const cut = text.indexOf('. ')
+  return cut === -1 ? text : `${text.slice(0, cut + 1)}`
 }
 
 function NodeEditor({ node, routers }: { node: NetNode; routers: NetNode[] }) {

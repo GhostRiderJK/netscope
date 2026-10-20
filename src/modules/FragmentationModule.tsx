@@ -129,9 +129,9 @@ export function FragmentationModule() {
         </Panel>
 
         {plan.fragments.length ? (
-          <Panel title="Fragment table" hint="Every fragment repeats the header; offsets are in 8-byte units.">
+          <Panel title="Fragment table" hint="Every fragment repeats the header; offsets are in 8-byte units. Scroll sideways if needed.">
             <DataTable
-              columns={['#', 'Data (B)', 'Total (B)', 'Offset (×8B)', 'Offset (B)', 'MF', 'ID']}
+              columns={['#', 'Data', 'Total', 'Off ×8', 'Off B', 'MF', 'ID']}
               rows={plan.fragments.map((f) => [
                 String(f.index + 1),
                 String(f.payloadBytes),

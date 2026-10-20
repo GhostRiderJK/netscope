@@ -33,7 +33,7 @@ export function Ipv4Module() {
   const info = useMemo(() => describeSubnet(address, prefix), [address, prefix])
   const parsed = useMemo(() => parseIpv4(address), [address])
   const same = useMemo(() => sameSubnet(hostA, hostB, prefix), [hostA, hostB, prefix])
-  const decision = useMemo(() => deliveryDecision(hostA, prefix, '8.8.8.8', gateway), [hostA, prefix, gateway])
+  const decision = useMemo(() => deliveryDecision(hostA, prefix, hostB, gateway), [hostA, hostB, prefix, gateway])
 
   const mask = info.ok ? info.maskBinary : ''
   const addrBits = parsed.ok ? toBinary32(parsed.value) : ''
@@ -179,18 +179,19 @@ function BitRow({ caption, bits, split }: { caption: string; bits: string; split
     <div>
       <div className="section-title">{caption}</div>
       <div className="bit-grid">
-        {octets.map((octet, oi) =>
-          octet.split('').map((bit, bi) => {
-            const idx = oi * 8 + bi
-            const isNet = idx < split
-            const edge = bi === 7 ? ' octet-edge' : ''
-            return (
-              <span key={idx} className={`bit ${isNet ? 'net' : 'host'}${edge}`}>
-                {bit}
-              </span>
-            )
-          })
-        )}
+        {octets.map((octet, oi) => (
+          <div className="octet" key={oi}>
+            {octet.split('').map((bit, bi) => {
+              const idx = oi * 8 + bi
+              const isNet = idx < split
+              return (
+                <span key={idx} className={`bit ${isNet ? 'net' : 'host'}`}>
+                  {bit}
+                </span>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )
